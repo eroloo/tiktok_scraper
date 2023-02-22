@@ -19,20 +19,23 @@ scrolling = True
 time_to_wait = 20
 url = "https://www.tiktok.com/@pudzianband?lang=en"
 driver = uc.Chrome(options=options)
-
+time_to_captcha = 20
+tik_toks_list = []
 
 def get_tt_info(fun_tt):
-    chars = 'MK'
     try:
         views = fun_tt.find_element(By.XPATH, ".//strong").text
-        if views[-1] in chars:
-            views = views[:-1]
+        if views[-1] == 'K':
+            views = float(views[:-1]) * 1000
+        elif views[-1] == 'M':
+            views = float(views[:-1]) * 1000000
         link = fun_tt.find_element(By.XPATH, "./a").get_attribute('href')
     except Exception as e:
         exc_name = type(e).__name__
         link = 1
         views = 1
-        print(f'fail to analyze tweet, exc_name = {exc_name}')
+        print(e)
+        print(f'fail to analyze tik!, exc_name = {exc_name}')
     return {'link': link, 'views': views}
 
 
@@ -44,17 +47,18 @@ while scrolling:
     # Download data from tt account
     tts = WebDriverWait(driver, time_to_wait).until(
         EC.presence_of_all_elements_located((By.XPATH, "//div[contains(@class, 'tiktok-yz6ijl-DivWrapper')]")))
-    with open("C:\\Users\\user\\Desktop\\plik.txt", 'w') as my_file:
-        for tt in tts[-20:]:
-            my_file.write(str(get_tt_info(tt)) + "\n")
+    for tt in tts[-30:]:
+        tik_toks_list.append(get_tt_info(tt))
 
+    # Scrolling
     last_height = driver.execute_script("return document.body.scrollHeight")
     # Scroll down to bottom
     driver.execute_script(f"window.scrollTo(0, document.body.scrollHeight);")
     # Calculate new scroll height and compare it with last scroll height
+    # Captcha catching for 20s to solve after scrolling
     try:
         driver.find_element(By.CLASS_NAME, 'captcha-disable-scroll')
-        WebDriverWait(driver, 10).until(EC.visibility_of_all_elements_located((By.CLASS_NAME, 'tiktok-yz6ijl-DivWrapper')))
+        WebDriverWait(driver, time_to_captcha).until(EC.visibility_of_all_elements_located((By.CLASS_NAME, 'tiktok-yz6ijl-DivWrapper')))
     except selenium.common.exceptions.NoSuchElementException:
         pass
     new_height = driver.execute_script("return document.body.scrollHeight")
@@ -66,7 +70,11 @@ while scrolling:
         last_height = new_height
 
 driver.quit()
-#Result printing
+#Result printing and writing
 if not scrolling:
-    print(f'Analyzed { len(tts) } tiktok\'s')
-    print(f'The most popular is {max(tts, key=tts.views)}')
+    print(f'Analyzed { len(tik_toks_list) } tiktok\'s')
+    tik_toks_list = sorted(tik_toks_list, key = lambda x: float(x['views']))
+    with open('/home/eroloo/scraping/tt_file', 'w') as my_f:
+        for i in tik_toks_list:
+            my_f.write(str(i) + '\n')
+
