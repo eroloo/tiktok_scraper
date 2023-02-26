@@ -9,15 +9,28 @@ from selenium.webdriver.chrome.options import Options
 import time
 import undetected_chromedriver as uc
 from random import randrange
-
+import sys, getopt
 
 # options
 options = uc.ChromeOptions()
+profile = ''
+#params
+try:
+    argv = sys.argv[1:]
+    opts, args = getopt.getopt(argv, "hp:", ["help", "profile="])
+except getopt.GetoptError:
+    print('tik_scrap -p profile')
+    sys.exit(2)
+for opt, arg  in opts:
+    if opt == '-h':
+        print('tik_scrap -p profile')
+    elif opt in ('-p', '--profile'):
+        profile = arg
 
 # variables
 scrolling = True
 time_to_wait = 20
-url = "https://www.tiktok.com/@pudzianband?lang=en"
+url = f"https://www.tiktok.com/{profile}?lang=en"
 driver = uc.Chrome(options=options)
 time_to_captcha = 20
 tik_toks_list = []
@@ -46,8 +59,9 @@ driver.maximize_window()
 while scrolling:
     # Download data from tt account
     tts = WebDriverWait(driver, time_to_wait).until(
-        EC.presence_of_all_elements_located((By.XPATH, "//div[contains(@class, 'tiktok-yz6ijl-DivWrapper')]")))
-    for tt in tts[-30:]:
+        EC.visibility_of_all_elements_located((By.XPATH, "//div[contains(@class, 'tiktok-yz6ijl-DivWrapper')]")))
+    time.sleep(3) #EC is not best option here so add implicit wait as well
+    for tt in tts[-20:]:
         tik_toks_list.append(get_tt_info(tt))
 
     # Scrolling
@@ -57,10 +71,11 @@ while scrolling:
     # Calculate new scroll height and compare it with last scroll height
     # Captcha catching for 20s to solve after scrolling
     try:
-        driver.find_element(By.CLASS_NAME, 'captcha-disable-scroll')
+        cap = driver.find_element(By.CLASS_NAME, 'captcha-disable-scroll')
         WebDriverWait(driver, time_to_captcha).until(EC.visibility_of_all_elements_located((By.CLASS_NAME, 'tiktok-yz6ijl-DivWrapper')))
     except selenium.common.exceptions.NoSuchElementException:
         pass
+
     new_height = driver.execute_script("return document.body.scrollHeight")
     if new_height == last_height:  # if the new and last height are equal, it means that there isn't any new page to
         # load, so we stop scrolling
